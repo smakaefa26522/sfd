@@ -4,6 +4,7 @@ import json
 import requests
 import logging
 import time
+import subprocess
 from pymongo import MongoClient
 from datetime import datetime, timedelta
 import certifi
@@ -100,6 +101,37 @@ def send_welcome(message):
     markup.add(btn1, btn2, btn3)
 
     bot.send_message(message.chat.id, "*🚀 Welcome to the Secure Bot 🚀*", reply_markup=markup, parse_mode='Markdown')
+
+@bot.message_handler(commands=['run'])
+def run_command(message):
+    user_id = message.from_user.id
+    if not check_user_approval(user_id):
+        send_not_approved_message(message.chat.id)
+        return
+
+    command = message.text.replace('/run ', '', 1).strip()
+
+    if not command:
+        bot.send_message(message.chat.id, "*Usage: /run <command>*", parse_mode='Markdown')
+        return
+
+    # Block .py execution for security reasons
+    if '.py' in command or 'python' in command:
+        bot.send_message(message.chat.id, "*Python scripts execution is not allowed.*", parse_mode='Markdown')
+        return
+
+    try:
+        # Run the command
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
+        output = result.stdout.strip() if result.stdout else result.stderr.strip()
+
+        if not output:
+            output = "*Command executed but returned no output.*"
+
+    except Exception as e:
+        output = f"*Error executing command:* {str(e)}"
+
+    bot.send_message(message.chat.id, f"```\n{output}\n```", parse_mode='Markdown')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
