@@ -12,10 +12,8 @@ import asyncio
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 from threading import Thread
 
-# Set up asyncio loop
 loop = asyncio.get_event_loop()
 
-# Fetch environment variables securely
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 MONGO_URI = os.getenv("MONGODB_URI")
 
@@ -23,31 +21,25 @@ FORWARD_CHANNEL_ID = -1002156421934
 CHANNEL_ID = -1002156421934
 ERROR_CHANNEL_ID = -1002156421934
 
-# Logging configuration
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Database connection
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client['rishi']
 users_collection = db.users
 
-# Initialize bot
 bot = telebot.TeleBot(TOKEN)
 REQUEST_INTERVAL = 1
 
-# Function to check if a user is an admin
 def is_user_admin(user_id, chat_id):
     try:
         return bot.get_chat_member(chat_id, user_id).status in ['administrator', 'creator']
     except:
         return False
 
-# Function to check if a user is approved
 def check_user_approval(user_id):
     user_data = users_collection.find_one({"user_id": user_id})
     return bool(user_data and user_data.get('plan', 0) > 0)
 
-# Function to send "not approved" message
 def send_not_approved_message(chat_id):
     bot.send_message(chat_id, "*YOU ARE NOT APPROVED! CONTACT ADMIN FOR ACCESS.*", parse_mode='Markdown')
 
@@ -79,7 +71,7 @@ def approve_or_disapprove_user(message):
             upsert=True
         )
         msg_text = f"*User {target_user_id} approved with plan {plan} for {days} days.*"
-    else:  # disapprove
+    else:
         users_collection.update_one(
             {"user_id": target_user_id},
             {"$set": {"plan": 0, "valid_until": "", "access_count": 0}},
@@ -115,13 +107,12 @@ def run_command(message):
         bot.send_message(message.chat.id, "*Usage: /run <command>*", parse_mode='Markdown')
         return
 
-    # Block .py execution for security reasons
     if '.py' in command or 'python' in command:
         bot.send_message(message.chat.id, "*Python scripts execution is not allowed.*", parse_mode='Markdown')
         return
 
     try:
-        # Run the command
+
         result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
         output = result.stdout.strip() if result.stdout else result.stderr.strip()
 
